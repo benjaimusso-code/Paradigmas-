@@ -1,2 +1,1 @@
-pascal.lpr
-hola lucas gay 
+program;
