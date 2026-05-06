@@ -1,4 +1,5 @@
 Program Proc_tp1;
+{Falta agregar validaciones y terminar el CRUD, ademas del main con el menu}
 
 type 
     TProducto = record  {Se define la clase producto}
@@ -64,7 +65,8 @@ begin
 
   encontrado := false;  {Se inicializa la variable de encontrado}
   while not eof(archivo) do  {Mientras no se llegue al final del archivo}
+end;
 
 begin
-
-end;
+  
+end.
