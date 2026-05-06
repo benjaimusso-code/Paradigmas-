@@ -1,0 +1,69 @@
+Procedure ListarProducto; {Listar Producto}
+begin
+
+  assign(archivo, 'inventario.dat');
+  {$I-} 
+  reset(archivo); 
+  {$I+}
+
+  if IOResult <> 0 then
+  begin
+    writeln('El inventario esta vacio.');
+    exit;
+  end;
+
+  writeln('=== Inventario ===');
+  while not eof(archivo) do
+  begin
+    read(archivo, producto);
+    writeln('Codigo : ', producto.codigo);
+    writeln('Descripcion.  : ', producto.descripcion);
+    writeln('Precio : $', producto.precio:0:2);
+    writeln('Stock  : ', producto.stock, ' unidades');
+    writeln;
+  end;
+  close(archivo);
+  readln();
+end;
+
+Procedure EditarProducto; {Edita el producto}
+var edit: string;
+begin
+  writeln('Ingrese la descripcion del producto a editar: ');
+  ReadLn(edit)
+  LimpearTildes_y_Mayusculas(edit)
+  
+  assign(archivo, 'inventario.dat');  {Se asigna el archivo al que se va a escribir}
+  {$I-}  {Se deshabilitan los mensajes de error}
+  reset(archivo);  {Se intenta abrir el archivo para lectura}
+  {$I+}  {Se vuelven a habilitar los mensajes de error}
+  
+  BuscarPorDescripcion;
+
+
+
+end;
+
+
+begin
+  repeat
+        writeln;
+        writeln('-------- Menu de Opciones ------');
+        writeln('1. Agregar Producto');
+        writeln('2. Buscar Producto');
+        Writeln('3. Listar Producto');
+        Writeln('4. Eliminar Producto');
+        Writeln('5. Editar Producto ');
+        writeln('0. Salir');
+        writeln('Opcion: '); readln(opcion);
+
+        case opcion of
+            1: NuevoProducto;
+            2: BuscarProducto;
+            0: writeln('Fin del Programa.');
+        else
+            writeln('Opcion no valida.');
+        end;
+    until opcion = 0;
+    readln;
+end.
