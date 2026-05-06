@@ -1,5 +1,5 @@
 Program Proc_tp1;
-{Falta agregar validaciones y terminar el CRUD, ademas del main con el menu}
+{Falta agregar validaciones y terminar el CRUD, ademas del main con el menu, agregar procedure para limpiar pantalla y otro para linea de separacion}
 
 type 
     TProducto = record  {Se define la clase producto}
@@ -15,7 +15,6 @@ var
     opcion: integer;  {Variable para almacenar la opcion del menu}
 
 procedure NuevoProducto;  {Procedimiento para agregar un nuevo producto al inventario}
-
 begin
     while not eof(archivo) do  {Se recorre el archivo para encontrar el ultimo codigo registrado}
     begin
