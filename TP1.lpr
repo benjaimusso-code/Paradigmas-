@@ -96,11 +96,17 @@ begin
   repeat
     write(mensaje);
     readln(entrada);
-    if not Validar_Numero(entrada) then
-      writeln('Entrada invalida. Ingrese un numero.')
-    else
+    if Validar_Numero(entrada) = true then
+    begin
       Val(entrada, valor, codigo);
-  until Validar_Numero(entrada);
+      if codigo <> 0 then
+        writeln('Entrada invalida. Ingrese un numero.')
+      else
+        break;
+    end
+    else
+      writeln('Entrada invalida. Ingrese un numero.');
+  until false;
   LeerReal := valor;
 end;
 
@@ -225,6 +231,7 @@ begin
     close(archivo);
     writeln('Producto agregado correctamente.');
     writeln('Presione Enter para continuar');
+    readln();
   end
   else
   begin
@@ -327,11 +334,14 @@ var
   op: integer;
   confirmacion: string;
   posicion: longint;
+  Salir: boolean;
+  opcionsalir: integer;
 begin
   LimpiarPantalla;
   LineaSeparacion;
   writeln('=== Editar Producto ===');
   posicion := BuscarPorDescripcion;
+  Salir := false;
 
   if posicion < 0 then
   begin
@@ -376,10 +386,20 @@ begin
       3: repeat
            producto.stock := Round(LeerReal('Ingrese el nuevo stock: '));
          until producto.stock >= 0;
-      0: writeln('Saliendo sin realizar cambios');
+      0: begin
+           writeln('Saliendo sin realizar cambios');
+           Salir := true;
+         end;
       else writeln('Opcion invalida.');
     end;
-  until (op >= 0) and (op <= 3);
+    if (op >= 1) and (op <= 3) then
+    begin
+      writeln('Campo actualizado. Si desea seguir editando, seleccione (5), caso contrario seleccione (6).');
+      readln(opcionsalir);
+      if opcionsalir = 6 then
+        Salir := true;
+    end;
+  until Salir;
 
   if (op >= 1) and (op <= 3) then
   begin
@@ -416,28 +436,31 @@ begin
 
   encontrado := false;
   while not eof(archivo) do
-  begin
-    read(archivo, producto);
-    if LimpiarTildes_y_Mayusculas(producto.descripcion) = descripcionBuscada then
+  repeat
     begin
-      encontrado := true;
-      stockaEliminar := LeerEntero('Ingrese la cantidad a eliminar del stock: ');
-      stockActual := producto.stock;
-      if (stockActual >= stockaEliminar) and (stockaEliminar > 0) then
+      read(archivo, producto);
+      if LimpiarTildes_y_Mayusculas(producto.descripcion) = descripcionBuscada then
       begin
-        producto.stock := stockActual - stockaEliminar;
-        seek(archivo, FilePos(archivo) - 1);
-        write(archivo, producto);
-        writeln('Stock actualizado.');
-      end
-      else writeln('Error: Stock insuficiente o cantidad invalida.');
-      break;
+        encontrado := true;
+        stockaEliminar := LeerEntero('Ingrese la cantidad a eliminar del stock: ');
+        stockActual := producto.stock;
+        repeat
+          if (stockActual >= stockaEliminar) and (stockaEliminar > 0) then
+          begin
+            producto.stock := stockActual - stockaEliminar;
+            seek(archivo, FilePos(archivo) - 1);
+            write(archivo, producto);
+            writeln('Stock actualizado.');
+          end
+          else writeln('Error: Stock insuficiente o cantidad invalida.');
+        until (stockActual >= stockaEliminar) and (stockaEliminar > 0);
+      end;
     end;
-  end;
-  if not encontrado then writeln('Producto no encontrado.');
-  close(archivo);
-  writeln('Presione Enter para continuar');
-  readln;
+    if not encontrado then writeln('Producto no encontrado.');
+    writeln('Ingrese la descripcion correcta para eliminar stock.');
+    readln(descripcionBuscada);
+  until LimpiarTildes_y_Mayusculas(descripcionBuscada) = descripcionBuscada;
+  close(archivo); 
 end;
 
 begin
