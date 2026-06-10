@@ -1,15 +1,14 @@
 Program Proc_tp1;
 
-{$codepage UTF8}
-
+{$codepage UTF8}  // define la configuracion de caracteres
 uses crt, sysutils;
 
 const
-    MAX_PRODUCTOS = 100;
+    MAX_PRODUCTOS = 100; //constante globales para limitar 
     NOMBRE_ARCHIVO = 'inventario.dat';
 
 type 
-    TProducto = record
+    TProducto = record // Registro para almacenar la informacion de cada producto
         codigo: integer;
         descripcion: string[50];
         precio: real;
@@ -17,7 +16,7 @@ type
     end;
 
 var
-    producto: TProducto;
+    producto: TProducto; // Guardo el registro en la variable producto
     archivo: file of TProducto;
     opcion: integer;
 
@@ -69,7 +68,7 @@ begin
   Minusculas := res;
 end;
 
-function Validar_Numero(const s: string): boolean;
+function Validar_Numero(const s: string): boolean; // Valida que lo q haya ingresado el usuario sea un numero 
 var
   i: integer;
 begin
@@ -87,7 +86,7 @@ begin
     Validar_Numero := false;
 end;
 
-function LeerReal(const mensaje: string): real;
+function LeerReal(const mensaje: string): real; // Lo q hace es que por ejemplo el usuario escribe una palabra, el sist le deci opcion validad ingrese un numero
 var
   entrada: string;
   valor: real;
@@ -110,7 +109,7 @@ begin
   LeerReal := valor;
 end;
 
-function LeerEntero(const mensaje: string): integer;
+function LeerEntero(const mensaje: string): integer; // Lo q hace es que por ejemplo el usuario escribe una palabra, el sist le deci opcion validad ingrese un numero
 var
   entrada: string;
   valor: integer;
@@ -126,7 +125,7 @@ begin
   LeerEntero := valor;
 end;
 
-function EsDescripcionValida(const s: string): boolean;
+function EsDescripcionValida(const s: string): boolean; // Valida que la descripcion no sea vacia ni solo espacios
 var
   i: integer;
 begin
@@ -139,7 +138,7 @@ begin
     end;
 end;
 
-function BuscarPorDescripcion: longint;
+function BuscarPorDescripcion: longint; // Busca un producto por descripcion. Ej tengo 2 productos unas zapas y una remera, y quiero buscar un buzo como no esta en el sistema va a devolver un -1
 var
   descripcionBuscada: string;
   posicion: longint;
@@ -178,7 +177,7 @@ begin
   BuscarPorDescripcion := posicion;
 end;
 
-procedure NuevoProducto;
+procedure NuevoProducto; // Agrega un nuevo producto al inventario, asignando un codigo automaticamente y validando los datos ingresados por el usuario
 var
   ultimoID: integer;
 begin
@@ -238,7 +237,7 @@ begin
   end;
 end;
 
-Procedure BuscarPorCodigo;
+Procedure BuscarPorCodigo; // Busca un producto por codigo. Ej tengo 2 productos unas zapas con codigo 1 y una remera con codigo 2, y quiero buscar el codigo 3 como no esta en el sistema va a decir producto no encontrado
 var
   codigoBuscado: integer;
   encontrado: boolean;
@@ -271,7 +270,7 @@ begin
   if not encontrado then writeln('Producto no encontrado.');
 end;
 
-Procedure BuscarProducto;
+Procedure BuscarProducto; // Busca un producto por codigo o descripcion, dependiendo de la opcion que elija el usuario. Si el producto no se encuentra, muestra un mensaje indicando que no se encontro el producto
 var
   opcionBusqueda: integer;
 begin
@@ -298,7 +297,7 @@ begin
   readln;
 end;
 
-Procedure ListarProducto;
+Procedure ListarProducto; // Lista todos los productos del inventario mostrando su codigo, descripcion, precio y stock. Si no hay productos cargados, muestra un mensaje indicando que no hay productos en el inventario
 begin
   assign(archivo, NOMBRE_ARCHIVO);
   {$I-} reset(archivo); {$I+}
@@ -326,7 +325,7 @@ begin
   readln;
 end;
 
-Procedure EditarProducto;
+Procedure EditarProducto; // Permite editar la descripcion, precio o stock de un producto existente. El usuario puede elegir que campo editar y se validan los datos ingresados. Si el producto no se encuentra, muestra un mensaje indicando que no se encontro el producto
 var
   op: integer;
   confirmacion: string;
@@ -364,7 +363,7 @@ begin
     exit;
   end;
 
-  repeat
+  repeat //para saber q quiero editar
     writeln('--- Menu de Edicion ---');
     writeln('1. Descripcion');
     writeln('2. Precio');
@@ -410,7 +409,7 @@ begin
   readln;
 end;
 
-Procedure EliminarProducto;
+Procedure ProduEliminarcto; // Permite eliminar un producto del inventario o bajar su stock. El usuario ingresa la descripcion del producto y la cantidad a eliminar. Si el producto no se encuentra o no hay suficiente stock, muestra un mensaje de error.
 var
   descripcionBuscada: string;
   encontrado: boolean;
@@ -471,7 +470,7 @@ begin
     writeln('1. Agregar Producto');
     writeln('2. Buscar Producto');
     writeln('3. Listar Producto');
-    writeln('4. Eliminar Producto (Bajar Stock)');
+    writeln('4. Descontar Stock');
     writeln('5. Editar Producto ');
     writeln('0. Salir');
     opcion := LeerEntero('Opcion: ');
