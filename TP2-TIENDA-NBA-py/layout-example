@@ -1,0 +1,6 @@
+import PySimpleGUI as sg
+
+# o se puede usar tambien
+
+import tkinter as tk
+
