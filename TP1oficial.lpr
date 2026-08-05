@@ -1,7 +1,6 @@
-Program Proc_tp1;
+Program TP1oficial;
 
 {$codepage UTF8}  // define la configuracion de caracteres
-uses crt, sysutils;
 
 const
     MAX_PRODUCTOS = 100; //constante globales para limitar 
@@ -22,14 +21,14 @@ var
 
 Procedure LimpiarPantalla;
 begin
-  ClrScr;
+  writeln(StringOfChar(#10, 50));
 end;
 
 Procedure LineaSeparacion;
 var
   i, ancho: integer;
 begin
-  ancho := Lo(WindMax) + 1;
+  ancho := 80;
   writeln;
   for i := 1 to ancho do
     write('-');

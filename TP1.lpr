@@ -1,8 +1,7 @@
-Program Proc_tp1;
+Program TP1;
 
 {$codepage UTF8}
 
-uses crt, sysutils;
 
 const
     MAX_PRODUCTOS = 100;
