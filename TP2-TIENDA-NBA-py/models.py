@@ -8,12 +8,12 @@ class Serializable(ABC):
 
     @abstractmethod
     def to_dict(self) -> dict:
-        ...
+        pass
 
     @classmethod
     @abstractmethod
     def from_dict(cls, data: dict):
-        ...
+        pass
 
 class Persona(Serializable):
     def __init__(self, dni: int, nombre: str, edad: int):
@@ -59,7 +59,7 @@ class Persona(Serializable):
 
     @abstractmethod
     def descripcion(self) -> str:
-        ...
+        pass
 
     def __str__(self):
         return self.descripcion()
