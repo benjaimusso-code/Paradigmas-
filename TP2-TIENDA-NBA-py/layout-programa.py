@@ -3,12 +3,17 @@ import PySimpleGUI as sg
 from gestor import GestorSistema
 from excepts import ErrorSistema
 
+# "SystemDefaultForReal" hace que la ventana tome los colores del sistema
+# operativo en vez de un theme propio de PySimpleGUI.
 sg.theme("SystemDefaultForReal")
 
 
 # ----------------------------------------------------------------------
 # Helpers de tablas
 # ----------------------------------------------------------------------
+# Estas funciones convierten los objetos del gestor (Producto, Cliente,
+# Trabajador, Orden) en listas de listas, que es el formato que espera
+# sg.Table para pintar filas. Cada una arma solo lo que se va a mostrar.
 
 def filas_productos(gestor: GestorSistema):
     return [[p.codigo, p.descripcion, f"${p.precio:.2f}", p.stock]
@@ -32,6 +37,13 @@ def filas_ordenes(gestor: GestorSistema):
 
 
 def refrescar_todo(window, gestor: GestorSistema):
+    """
+    Se llama después de cualquier operación que modifique datos
+    (agregar, editar, eliminar, generar orden) para que las 4 tablas
+    y los 2 combos ocultos queden sincronizados con el estado real
+    del gestor. window["-KEY-"] accede al widget por su key, y
+    .update(...) refresca su contenido sin recrear la ventana.
+    """
     window["-TABLA_PRODUCTOS-"].update(filas_productos(gestor))
     window["-TABLA_CLIENTES-"].update(filas_clientes(gestor))
     window["-TABLA_TRABAJADORES-"].update(filas_trabajadores(gestor))
@@ -43,8 +55,12 @@ def refrescar_todo(window, gestor: GestorSistema):
 
 
 def fila_seleccionada(window, tabla_key, lista):
-    """Devuelve el objeto seleccionado en una tabla, o None si no hay seleccion."""
-    seleccion = window[tabla_key].get()
+    """
+    Traduce "qué fila clickeó el usuario en la tabla" a "qué objeto
+    Python es esa fila". SelectedRows guarda los índices seleccionados;
+    si no hay selección o el índice quedó fuera de rango, devuelve None
+    en vez de romper con un IndexError.
+    """
     indices = window[tabla_key].SelectedRows if hasattr(window[tabla_key], "SelectedRows") else []
     if not indices:
         return None
@@ -59,6 +75,8 @@ def fila_seleccionada(window, tabla_key, lista):
 # ----------------------------------------------------------------------
 
 def ventana_producto(gestor: GestorSistema, producto=None):
+    # Un solo formulario sirve para crear y editar: si viene un
+    # producto existente, precarga sus datos; si no, arranca vacío.
     editando = producto is not None
     titulo = "Editar Producto" if editando else "Agregar Producto"
 
@@ -71,14 +89,19 @@ def ventana_producto(gestor: GestorSistema, producto=None):
          sg.Input(str(producto.stock) if editando else "", key="-STOCK-")],
         [sg.Push(), sg.Button("Guardar"), sg.Button("Cancelar")],
     ]
+    # modal=True bloquea la ventana principal hasta que se cierre esta.
     win = sg.Window(titulo, layout, modal=True)
 
     while True:
+        # win.read() bloquea hasta que el usuario hace algo (botón, cierre, etc.)
+        # y devuelve qué evento ocurrió y el diccionario de valores actuales.
         event, values = win.read()
         if event in (sg.WIN_CLOSED, "Cancelar"):
             break
         if event == "Guardar":
             try:
+                # .replace(",", ".") permite que el usuario tipee coma
+                # decimal (como en Argentina) y siga funcionando float().
                 precio = float(values["-PRECIO-"].replace(",", "."))
                 stock = int(values["-STOCK-"])
                 if editando:
@@ -90,8 +113,11 @@ def ventana_producto(gestor: GestorSistema, producto=None):
                     sg.popup_ok("Producto agregado con exito.")
                 break
             except ValueError:
+                # El usuario escribió texto donde iba un número.
+                # No hay break: la ventana sigue abierta para corregir.
                 sg.popup_error("Precio y Stock deben ser numeros validos.")
             except ErrorSistema as e:
+                # Error de negocio (viene del gestor), no de formato.
                 sg.popup_error(str(e))
 
     win.close()
@@ -132,6 +158,8 @@ def ventana_cliente(gestor: GestorSistema):
         [sg.Text("Edad:", size=(12, 1)), sg.Input(key="-EDAD-")],
         [sg.Text("Email:", size=(12, 1)), sg.Input(key="-EMAIL-")],
         [sg.Text("Tipo:", size=(12, 1)),
+         # readonly=True: el usuario solo puede elegir de la lista,
+         # no puede tipear un tipo de cliente inválido a mano.
          sg.Combo(["Minorista", "Mayorista"], default_value="Minorista", key="-TIPO-",
                    readonly=True)],
         [sg.Push(), sg.Button("Guardar"), sg.Button("Cancelar")],
@@ -195,6 +223,8 @@ def ventana_trabajador(gestor: GestorSistema):
 def ventana_generar_orden(gestor: GestorSistema):
     clientes = gestor.listar_clientes()
     trabajadores = gestor.listar_trabajadores()
+    # Validación previa: ni siquiera tiene sentido abrir la ventana
+    # si todavía no hay clientes o trabajadores cargados.
     if not clientes:
         sg.popup_error("Primero tenes que registrar al menos un Cliente.")
         return
@@ -202,6 +232,9 @@ def ventana_generar_orden(gestor: GestorSistema):
         sg.popup_error("Primero tenes que registrar al menos un Trabajador.")
         return
 
+    # "Carrito" temporal: los items NO se guardan en el gestor hasta
+    # que se confirma la orden. Si el usuario cancela, no queda nada
+    # a medio crear en el sistema.
     items_temporales = []  # [(codigo, descripcion, precio, cantidad)]
 
     layout = [
@@ -214,15 +247,21 @@ def ventana_generar_orden(gestor: GestorSistema):
         [sg.Text("Codigo Producto:", size=(14, 1)), sg.Input(key="-COD_PROD-", size=(10, 1)),
          sg.Text("Cantidad:"), sg.Input(key="-CANT_PROD-", size=(6, 1)),
          sg.Button("Agregar item")],
+        # auto_size_columns=True + expand_x/expand_y: la tabla reparte
+        # el ancho de columnas según el contenido y crece si el popup
+        # se agranda, en vez de quedar con anchos fijos (col_widths).
         [sg.Table(values=[], headings=["Codigo", "Producto", "P. Unit.", "Cant.", "Subtotal"],
-                   key="-TABLA_ITEMS-", auto_size_columns=False,
-                   col_widths=[8, 20, 10, 6, 10], num_rows=6, justification="left")],
+                   key="-TABLA_ITEMS-", auto_size_columns=True,
+                   num_rows=6, justification="left",
+                   expand_x=True, expand_y=True)],
         [sg.Text("", key="-TOTAL-", font=("Any", 10, "bold"))],
         [sg.Push(), sg.Button("Confirmar Orden"), sg.Button("Cancelar")],
     ]
-    win = sg.Window("Generar Orden de Compra", layout, modal=True)
+    win = sg.Window("Generar Orden de Compra", layout, modal=True, resizable=True)
 
     def refrescar_items():
+        # Función anidada: usa "win" e "items_temporales" del scope
+        # exterior por closure, sin necesidad de pasarlos como parámetro.
         filas = [[c, d, f"${p:.2f}", ca, f"${p * ca:.2f}"] for c, d, p, ca in items_temporales]
         total = sum(p * ca for _, _, p, ca in items_temporales)
         win["-TABLA_ITEMS-"].update(filas)
@@ -239,14 +278,21 @@ def ventana_generar_orden(gestor: GestorSistema):
                 cantidad = int(values["-CANT_PROD-"])
                 producto = gestor.buscar_producto_por_codigo(codigo)
                 if cantidad <= 0:
+                    # Truco para reusar el mismo mensaje de error de
+                    # abajo (except ValueError) sin duplicar código.
                     raise ValueError
-                # Verifica contra el stock actual menos lo ya cargado en esta orden
+
+                # Si el producto ya fue agregado antes en este mismo
+                # carrito, hay que sumar lo ya pedido contra el stock
+                # real; si no, se podría "pedir" más stock del que hay
+                # agregándolo de a poco en varias pasadas.
                 ya_pedido = sum(ca for c, _, _, ca in items_temporales if c == codigo)
                 if cantidad + ya_pedido > producto.stock:
                     sg.popup_error(
                         f"Stock insuficiente para '{producto.descripcion}'. "
                         f"Disponible: {producto.stock}.")
                     continue
+
                 items_temporales.append(
                     (producto.codigo, producto.descripcion, producto.precio, cantidad))
                 refrescar_items()
@@ -263,8 +309,13 @@ def ventana_generar_orden(gestor: GestorSistema):
                 sg.popup_error("Agrega al menos un item a la orden.")
                 continue
             try:
+                # El combo muestra "DNI - Nombre"; acá se separa por
+                # " - " y se toma la primera parte para recuperar el DNI.
                 dni_cliente = int(values["-CLIENTE-"].split(" - ")[0])
                 dni_trabajador = int(values["-TRABAJADOR-"].split(" - ")[0])
+                # Recién acá se "materializa" todo en el gestor: se crea
+                # la orden vacía y se le van agregando los items del
+                # carrito temporal uno por uno.
                 orden = gestor.crear_orden(dni_cliente, dni_trabajador)
                 for codigo, _, _, cantidad in items_temporales:
                     gestor.agregar_item_a_orden(orden, codigo, cantidad)
@@ -282,12 +333,17 @@ def ventana_generar_orden(gestor: GestorSistema):
 # ----------------------------------------------------------------------
 
 def construir_layout(gestor: GestorSistema):
+    # FIX RESIZE: en cada tabla se cambió col_widths fijo por
+    # auto_size_columns=True, y se agregó expand_x=True, expand_y=True.
+    # Sin esto, aunque la ventana se maximice, la tabla queda con su
+    # tamaño original pegada en una esquina y sobra espacio en blanco.
     tab_productos = [
         [sg.Table(values=filas_productos(gestor),
                    headings=["Codigo", "Descripcion", "Precio", "Stock"],
-                   key="-TABLA_PRODUCTOS-", auto_size_columns=False,
-                   col_widths=[8, 30, 12, 8], num_rows=14, justification="left",
-                   enable_events=True)],
+                   key="-TABLA_PRODUCTOS-", auto_size_columns=True,
+                   num_rows=14, justification="left",
+                   enable_events=True,
+                   expand_x=True, expand_y=True)],
         [sg.Button("Nuevo Producto"), sg.Button("Editar Producto"),
          sg.Button("Descontar Stock"), sg.Button("Eliminar Producto")],
     ]
@@ -295,36 +351,44 @@ def construir_layout(gestor: GestorSistema):
     tab_clientes = [
         [sg.Table(values=filas_clientes(gestor),
                    headings=["DNI", "Nombre", "Edad", "Email", "Tipo"],
-                   key="-TABLA_CLIENTES-", auto_size_columns=False,
-                   col_widths=[12, 20, 6, 22, 10], num_rows=14, justification="left")],
+                   key="-TABLA_CLIENTES-", auto_size_columns=True,
+                   num_rows=14, justification="left",
+                   expand_x=True, expand_y=True)],
         [sg.Button("Nuevo Cliente"), sg.Button("Eliminar Cliente")],
     ]
 
     tab_trabajadores = [
         [sg.Table(values=filas_trabajadores(gestor),
                    headings=["Legajo", "DNI", "Nombre", "Edad", "Cargo", "Salario"],
-                   key="-TABLA_TRABAJADORES-", auto_size_columns=False,
-                   col_widths=[8, 12, 20, 6, 15, 12], num_rows=14, justification="left")],
+                   key="-TABLA_TRABAJADORES-", auto_size_columns=True,
+                   num_rows=14, justification="left",
+                   expand_x=True, expand_y=True)],
         [sg.Button("Nuevo Trabajador"), sg.Button("Eliminar Trabajador")],
     ]
 
     tab_ordenes = [
         [sg.Table(values=filas_ordenes(gestor),
                    headings=["Nro", "Fecha", "DNI Cliente", "DNI Trabajador", "Items", "Total"],
-                   key="-TABLA_ORDENES-", auto_size_columns=False,
-                   col_widths=[6, 16, 12, 14, 6, 10], num_rows=14, justification="left")],
+                   key="-TABLA_ORDENES-", auto_size_columns=True,
+                   num_rows=14, justification="left",
+                   expand_x=True, expand_y=True)],
         [sg.Button("Generar Orden")],
+        # Combos ocultos que solo existen para poder llamar a .update()
+        # sobre ellos desde refrescar_todo (no se muestran en pantalla).
         [sg.Combo([], key="-COMBO_CLIENTE-", visible=False),
          sg.Combo([], key="-COMBO_TRABAJADOR-", visible=False)],
     ]
 
+    # expand_x/expand_y también en cada sg.Tab y en el TabGroup: sin
+    # esto, aunque la tabla de adentro "quiera" crecer, el contenedor
+    # padre no le pasa el espacio extra que gana la ventana al maximizar.
     layout = [
         [sg.TabGroup([[
-            sg.Tab("Productos", tab_productos),
-            sg.Tab("Clientes", tab_clientes),
-            sg.Tab("Trabajadores", tab_trabajadores),
-            sg.Tab("Ordenes de Compra", tab_ordenes),
-        ]])],
+            sg.Tab("Productos", tab_productos, expand_x=True, expand_y=True),
+            sg.Tab("Clientes", tab_clientes, expand_x=True, expand_y=True),
+            sg.Tab("Trabajadores", tab_trabajadores, expand_x=True, expand_y=True),
+            sg.Tab("Ordenes de Compra", tab_ordenes, expand_x=True, expand_y=True),
+        ]], expand_x=True, expand_y=True, key="-TABGROUP-")],
         [sg.Button("Actualizar"), sg.Push(), sg.Button("Salir")],
     ]
     return layout
@@ -332,6 +396,9 @@ def construir_layout(gestor: GestorSistema):
 
 def main():
     gestor = GestorSistema()
+    # resizable=True permite agrandar la ventana con el mouse.
+    # finalize=True es obligatorio porque hacemos .update() sobre
+    # elementos (en refrescar_todo) antes del primer window.read().
     window = sg.Window("Sistema de Gestion - TP2 POO", construir_layout(gestor),
                         finalize=True, resizable=True)
 
@@ -349,6 +416,8 @@ def main():
             refrescar_todo(window, gestor)
 
         elif event == "Editar Producto":
+            # fila_seleccionada traduce la fila clickeada en la tabla
+            # al objeto Producto real correspondiente.
             producto = fila_seleccionada(window, "-TABLA_PRODUCTOS-", gestor.listar_productos())
             if producto is None:
                 sg.popup_error("Selecciona un producto de la tabla primero.")
@@ -369,6 +438,7 @@ def main():
             if producto is None:
                 sg.popup_error("Selecciona un producto de la tabla primero.")
             elif sg.popup_yes_no(f"Eliminar '{producto.descripcion}'?") == "Yes":
+                # Confirmación antes de una acción destructiva.
                 try:
                     gestor.eliminar_producto(producto.codigo)
                     refrescar_todo(window, gestor)
